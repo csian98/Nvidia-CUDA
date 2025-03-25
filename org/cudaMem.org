@@ -1,0 +1,23 @@
+#+TITLE: cudaMem.org
+#+AUTHOR: Jeong Hoon Choi
+#+DATE: 2023.11.25
+
+* CUDA Memory Hierachy
+
+| Extant | Memory Type     | R/W         | Speed   | Cache Useage | Size     |
+|--------+-----------------+-------------+---------+--------------+----------|
+| Thread | Register        | Read, Write | Fastest | X            | Smallest |
+| "      | Local Memory    | Read, Write | Slow    | ^            | (Device) |
+| Block  | Shared Memory   | Read, Write | Fast    | X            | Small    |
+| Grid   | Global Memory   | Read, Write | Slow    | ^            | Largest  |
+| "      | Constant Memory | Read-Only   | Fast    | O            | Small    |
+| "      | Texture Memory  | Read-Only   | Fast    | O            | Small    |
+|--------+-----------------+-------------+---------+--------------+----------|
+
+
+* Speed
+Fastest		Register - in-chip
+					Shared memory -L1 Cache - in-chip
+					(CHIP DIVIDE LINE)
+          L2 Cache - off-chip
+Slowest   Device Memory - off-chip

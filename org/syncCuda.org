@@ -1,0 +1,34 @@
+#+TITLE: syncCuda.org
+#+AUTHOR: Jeong Hoon Choi
+#+DATE: 2023.11.25
+
+* Synchronization Function
+Warp	__syncwarp();
+Block	__syncthreads();
+Grid	use divided kernel
+
+- Host & Device
+	cudaError_t cudaDeviceSynchronize();
+- stream
+  cudaError_t cudaStreamSynchronize(cudaStream_t);
+  (stream status)
+  cudaError_t cudaStreamQuery(cudaStream_t);
+
+cudaError_t cudaMemcpyAsync(void* dst, const void* src, size_t size, enum cudaMemcpyKind, cudaStream_t stream=0);
+
+<Host Pinned Memory>
+cudaError_t cudaMallocHost(void** ptr, size_t size);
+cudaError_t cudaFreeHost(void* ptr);
+
+* Atomic Operation
+int atomicAdd(int* addr, int val);
+int atomicSub(int* addr, int val);
+int atomicExch(int* addr, int val);
+int atomicMin(int* addr, int val);
+int atomicMax(int* addr, int val);
+unsigned int atomicInc(unsigned int* addr, unsigned int val);
+unsigned int atomicDec(unsigned int* addr, unsigned int val);
+int atomicCAS(int* addr, int compare, int val);
+int atomicAnd(int* addr, int val);
+int atomicOr(int* addr, int val);
+int atomixXor(int* addr, int val);

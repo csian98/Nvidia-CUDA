@@ -1,0 +1,6 @@
+-std=c++2b
+-xc++
+-I/usr/include
+-I/usr/local/include
+-I/opt/homebrew/include
+-I./include

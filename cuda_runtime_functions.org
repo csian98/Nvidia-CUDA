@@ -1,0 +1,234 @@
+#+TITLE: cuda_runtime_functions.org
+#+AUTHOR: Jeong Hoon Choi
+#+DATE: 2024.05.15
+
+* Header File
+#+begin_src C++
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
+#+end_src
+
+* GPU info
+#+begin_src C++
+cudaError_t cudaGetDeviceCount(int* count);
+cudaError_t cudaGetDeviceProperties(cudaDeviceProp* prop, int deviceID);
+
+cudaError_t cudaSetDevice(int deviceID);
+cudaError_t cudaGetDevice(int* deviceID);
+#+end_src
+** cudaDeviceProp
+#+begin_src C++
+struct cudaDeviceProp {
+	// ...
+	char name[255];
+	int major;
+	int minor;
+	int multiProcessorCount;	// GPU's number of multiprocessor (# of SM)
+	int totalGlobalMem;			// GPU global memory size (byte)
+};
+
+#include "helper_cuda.h"
+inline int _ConvertSMVer2Cores(int major, int minor);	// core number per processor(SM)
+#+end_src
+
+* Kernel Exec
+#+begin_src C++
+template <typename T>
+__global__ kernel_init(T*);
+
+__host__ int main(void) {
+	// ...
+	kernel_init<double><<<dimGrid, dimGlock, sizeof(double) * size, stream>>>();
+	// ...
+}
+#+end_src
+
+* Kernel built-in variables
+#+begin_src C++
+dim3 gridDim;
+dim3 blockDim;
+uint3 blockIdx;
+uint3 threadIdx;
+int warpSize;
+#+end_src
+
+* Synchronize
+#+begin_src C++
+// Barrier
+__host__ __device__ cudaError_t cudaDeviceSynchronize(void);
+__host__ __device__ cudaError_t cudaStreamSynchronize(cudaStream_t);
+
+void __syncthreads(void);		// threads in block synchronize
+void __syncwarp(void);		// threads in warp synchronize
+
+// Mutual Exclusion
+int atomicAdd(int* addr, int val);
+int atomicSub(int* addr, int val);
+int atomicExch(int* addr, int val);
+int atomicMin(int* addr, int val);
+int atomicMax(int* addr, int val);
+unsigned int atomicInc(unsigned int* addr, int val);
+unsigned int atomicDec(unsigned int* addr, int val);
+int atomicCAS(int* addr, int compare, int val);
+int atomicAnd(int* addr, int val);
+int atomicOr(int* addr, int val);
+int atomicXor(int* addr, int val);
+#+end_src
+
+* Memory
+| Shared Range | Memory Type            | Support Op  | Accessing Speed | Support Cache     | Size     |
+|--------------+------------------------+-------------+-----------------+-------------------+----------|
+| Thread       | Register (On-chip)     | Read, Write | Fastest         | X                 | Smallest |
+| Thread       | Local Mem. (Device)    | Read, Write | Slow            | P                 | Large    |
+| Block        | Shared Mem. (On-chip)  | Read, Write | Fast            | X                 | Small    |
+| Grid         | Global Mem. (Device)   | Read, Write | Slow            | P                 | Largest  |
+| Grid         | Constant Mem. (Device) | Read-only   | Fast            | O (own dedicated) | Small    |
+| Grid         | Texture Mem. (Device)  | Read-only   | Fast            | O (own dedicated) | Small    |
+ % shared memory and L1 cache share the same On-chip memory
+
+#+begin_src c++
+cudaError_t cudaMalloc(void** ptr, size_t size);
+cudaError_t cudaFree(void* ptr);
+cudaError_t cudaMemset(void* ptr, int value, size_t size);	// memory byte-by-byte initialization
+
+cudaError_t cudaMemcpy(void* dst, const void* src, size_t size, enum cudaMemcpyKind kind);
+
+cudaError_t cudaMemGetInfo(size_t* free, size_t* total);
+#+end_src
+** enum cudaMemcpyKind
+#+begin_src C++
+enum cudaMemcpyKind {
+	cudaMemcpyHostToHost = 0,
+	cudaMemcpyHostToDevice = 1,
+	cudaMemcpyDeviceToHost = 2,
+	cudaMemcpyDeviceToDevice = 3,
+	cudaMemcpyDefault = 4
+};
+#+end_src
+** multi dimension
+#+begin_src C++
+cudaError_t cudaMalloc2D(void* dst, size_t dpitch, const void* src, size_t spitch,
+						 size_t width, size_t heihgt, cudaMemcpyKind kind);
+cudaError_t cudaMalloc3D(cudaPitchedPtr* pitchedDevPtr, cudaExtent extent);
+
+cudaError_t cudaMemset2D(void* devPtr, size_t pitch, int value, size_t width, size_t height);
+cudaError_t cudaMemset3D(cudaPitchedPtr pitchedDevPtr, int value, cudaExtent extent);
+
+#+end_src
+** Async
+#+begin_src C++
+__host__ __device__ cudaError_t cudaMemcpyAsync(void* dst, const void* src, size_t count,
+												cudaMemcpyKind kind, cudaStream_t stream = 0);
+__host__ __device__ cudaError_t cudaMemcpy2DAsync(void* dst, size_t dpitch,
+												  const void* src, size_t spitch,
+												  size_t width, size_t height, cudaMemcpyKind ind,
+												  cudaStream_t stream = 0);
+__host__ __device__ cudaError_t cudaMemcpy3DAsync(const cudaMemcpy3DParms* p,
+												  cudaStream_t stream = 0);
+
+cudaError_t cudaMemset2DAsync(void* devPtr, size_t pitch, int value, size_t width, size_t height,
+							  cudaStream_t stream = 0);
+cudaError_t cudaMemset3DAsync(cudaPitchedPtr pitchedDevPtr, int value, cudaExtent extent,
+							  cudaStream_t stream = 0);
+#+end_src
+
+* Shared Memory
+- On-chip memory (shared with threads in same block)
+  Shared Memory shared the same memory with L1 cache
+#+begin_src C++
+// static allocate
+__global__ void kernel(void) {
+	__shared__ int sharedMemory[512];
+}
+// dynamic allocate
+extern __shared__ int sharedMemory[];
+__global__ void kernel(void) {/* ... */ }
+
+int main(void) {
+	int size = 512;
+	kernel<<<gridDim, blockDim, sizeof(int) * size>>>();
+}
+#+end_src
+** cudaFuncSetCacheConfig
+#+begin_src C++
+template <class T>
+inline cudaError_t cudaFuncSetCacheConfig(T* func, cudaFuncCache cacheConfig);
+#+end_src
+*** cudaFuncCache
+#+begin_src C++
+enum cudaFuncCache {
+	cudaFuncCachePreferNone = 0,
+	cudaFuncCachePreferShared = 1,
+	cudaFuncCachePreferL1 = 2,
+	cudaFuncCachePreferEqual = 3
+};
+#+end_src
+
+* Constant Memory
+- Device memory (has own On-chip cache)
+#+begin_src C++
+__constant__ int constMemory[512];
+
+int main(void) {
+	// ...
+	int table[512] = {0};
+	cudaMemcpyToSymbol(constMemory, table, sizeof(int) * 512);
+	// ...
+}
+#+end_src
+** cudaMemcpyToSymbol
+#+begin_src C++
+_cudaError_t cudaMemcpyToSymbol(const void* symbol, const void* src,
+								size_t count, size_t offset = 0,
+								cudaMemcpyKind kind = cudaMemcpyHostToDevice);
+#+end_src
+
+* Stream
+#+begin_src C++
+// Non-Null Stream
+cudaError_t cudaStreamCreate(cudaStream_t*);
+cudaError_t cudaStreamDestroy(cudaStream_t);
+#+end_src
+
+** Allocate Host memory pinned
+#+begin_src C++
+cudaError_t cudaMallocHost(void** ptr, size_t size);
+cuadError_t cudaFreeHost(void* ptr);
+#+end_src
+
+** Management
+#+begin_src C++
+cudaError_t cudaStreamSynchronize(cudaStream_t);
+cudaError_t cudaStreamQuery(cudaStream_t);
+// cudaSuccess(=0) || cudaErrorNotReady(=600)
+#+end_src
+
+* Event
+#+begin_src C++
+cudaError_t cudaEventCreate(cudaEvent_t* event);
+cudaError_t cudaEventDestroy(cudaEvent event);
+
+cudaError_t cudaEventRecord(cudaEvent_t event, cudaStream_t stream = 0);
+
+cudaError_t cudaEventSynchronize(cudaEvnet_t event);
+cudaError_t cudaEventQuery(cudaEvent_t event);
+// cudaSuccess(=0) || cudaErrorNotReady(=600)
+cudaError_t cudaEventElapsedTime(float* ms,
+								 cudaEvent_t start, cudaEvent_t stop);
+#+end_src
+
+* Error_t (cudaError_t)
+#+begin_src C++
+__host__ __device__ const char* cudaGetErrorName(cudaError_t error);
+#+end_src
+
+* NVCC
+#+begin_src shell
+nvcc --maxrregcount #	maximum register number each thread can use
+#+end_src
+
+* Nsight Compute
+#+begin_src shell
+sudo ncu -o profile <exec>
+#+end_src

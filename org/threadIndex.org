@@ -1,0 +1,24 @@
+#+TITLE: threadIndex.org
+#+AUTHOR: Jeong Hoon Choi
+#+DATE: 2023.11.23
+
+* Block
+** 1dim Block
+threadIdx.x
+
+** 2dim Block
+2D_BLOCK_TID=(blockDim.x * threadIdx.y + threadIdx.x)
+
+** 3dim Block
+TID_IN_BLOCK=(blockDim.x * blockDim.y * threadIdx.z + 2D_BLOCK_TID)
+
+* Grid
+** 1dim Grid
+NUM_THREAD_IN_BLOCK=blockDim.x * blockDim.y * blockDim.z
+1D_GRID_TID=(blockIdx.x * (NUM_THREAD_IN_BLOCK)) + TID_IN_BLOCK
+
+** 2dim Grid
+2D_GRID_TID=(blockIdx.y * (gridDim.x * NUM_THREAD_IN_BLOCK)) + 1D_GRID_TID
+
+** 3dim Grid
+GLOBAL_TID=(blockIdx.z * (gridDim.y * gridDim.x * NUM_THREAD_IN_BLOCK)) + 2D_GRID_TID
